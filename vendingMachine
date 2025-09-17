@@ -1,0 +1,373 @@
+using System.ComponentModel;
+using System.Dynamic;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+
+namespace VendingMachine
+{
+    class Program
+    {
+        static void Main()
+        {
+            VendingMachine app = new VendingMachine();
+            app.Run();
+        }
+
+    }
+    public class Product
+    {
+        public string Name { get; set; }
+        public int Quantity { get; set; }
+        public decimal Price { get; set; }
+        public string Code { get; set; }
+
+        public Product(string name, decimal price, int quantity, string code)
+        {
+            Name = name;
+            Price = price;
+            Quantity = quantity;
+            Code = code;
+        }
+
+        public override string ToString()
+        {
+            return $"{Code}: {Name} - {Price} рублей (Осталось: {Quantity})";
+        }
+
+    }
+    public class VendingMachine
+    {
+        private List<Product> products;
+        private Dictionary<decimal, int> money;
+        private decimal currentBalance;
+        private bool isAdminMode;
+
+        public VendingMachine()
+        {
+            products = new List<Product>
+            {
+                new Product("Snickers", 100, 5, "A1"),
+                new Product("Twix", 90, 6, "A2")
+            };
+
+            money = new Dictionary<decimal, int>{
+                {5000, 1},
+                {2000, 3},
+                {1000, 2},
+                {500, 5},
+                {200, 8},
+                {100, 2},
+                {50, 3},
+                {10, 15},
+                {5, 7},
+                {2, 11},
+                {1, 40}
+            };
+
+            currentBalance = 0;
+            isAdminMode = false;
+
+        }
+
+        public void Run()
+        {
+            while (true)
+            {
+                if (isAdminMode)
+                {
+                    ShowAdminMode();
+                }
+                else
+                {
+                    ShowConsumerMode();
+                }
+            }
+        }
+
+        private void ShowConsumerMode()
+        {
+            Console.Clear();
+            Console.WriteLine("***СПИСОК ДЕЙСВТИЙ***");
+            Console.WriteLine("1. Список товаров");
+            Console.WriteLine("2. Внести деньги");
+            Console.WriteLine("3. Выбрать товар");
+            Console.WriteLine("4. Сдача");
+            Console.WriteLine("5. Администраторский режим");
+            Console.WriteLine("Выберите опцию");
+
+            string input = Console.ReadLine();
+            switch (input)
+            {
+                case "1":
+                    Back(ShowProducts);
+                    break;
+                case "2":
+                    TakeMoney();
+                    break;
+                case "3":
+                    Back(SelectProduct);
+                    break;
+                case "4":
+                    Back(GetChange);
+                    break;
+                case "5":
+                    CheckAdminMode();
+                    break;
+            }
+
+        }
+        private void ShowAdminMode()
+        {
+            Console.Clear();
+            Console.WriteLine("***АДМИНИСТРАТОРСКИЙ РЕЖИМ***\n");
+            Console.WriteLine("СПИСОК ДЕЙСВТИЙ: ");
+            Console.WriteLine("1. Пополннить ассортимент");
+            Console.WriteLine("2. Собрать средства");
+            Console.WriteLine("3. Назад");
+            Console.WriteLine("Выберите опцию");
+
+            string input = Console.ReadLine();
+            switch (input)
+            {
+                case "1":
+                    Back(NewAssortment);
+                    break;
+                case "2":
+                    Back(Fundraising);
+                    break;
+                case "3":
+                    isAdminMode = false;
+                    break;
+            }
+
+
+        }
+
+        public void Back(Action action)
+        {
+            Console.Clear();
+            action();
+            Console.WriteLine("\nНажмите ESC для возврата назад...");
+
+            while (true)
+            {
+                if (Console.KeyAvailable)
+                {
+                    var key = Console.ReadKey(true).Key;
+                    if (key == ConsoleKey.Escape)
+                    {
+                        Console.WriteLine("\nВозврат в предыдущее меню...");
+                        return;
+                    }
+                }
+
+                Thread.Sleep(100);
+            }
+        }
+
+        private void ShowProducts()
+        {
+            Console.WriteLine("СПИСОК ТОВАРОВ");
+
+            foreach (var product in products)
+            {
+                Console.WriteLine(product);
+            }
+        }
+        private void SelectProduct()
+        {
+            ShowProducts();
+            Console.WriteLine($"\nТекущий баланс: {currentBalance}");
+            Console.WriteLine("\nНапишите код");
+
+            string code = Console.ReadLine().ToUpper();
+
+            var product = products.FirstOrDefault(p => p.Code == code);
+
+            if (product == null)
+            {
+                Console.WriteLine("Нет такого товара");
+                return;
+            }
+
+            if (product.Quantity == 0)
+            {
+                Console.WriteLine("Товар закончился");
+                return;
+            }
+
+            if (currentBalance >= product.Price)
+            {
+                product.Quantity -= 1;
+                currentBalance -= product.Price;
+                Console.WriteLine($"Выдан {product.Name}");
+            }
+            else
+            {
+                Console.WriteLine("Недостачно средств.");
+            }
+            return;
+        }
+
+        public void TakeMoney()
+        {
+            Console.Clear();
+            Console.WriteLine("Напишите exit для возврата назад...");
+
+            Console.WriteLine("\nВнесите купюры");
+            while (true)
+            {
+                string input = Console.ReadLine();
+
+                if (input == "exit")
+                {
+                    Console.WriteLine("\nВозврат в предыдущее меню...");
+                    return;
+                }
+
+                if (string.IsNullOrWhiteSpace(input))
+                {
+                    continue;
+                }
+
+                if (decimal.TryParse(input, out decimal takenMoney))
+                {
+                    if (!SsValidBanknote(takenMoney))
+                    {
+                        Console.WriteLine($"Ошибка: купюра {takenMoney} рублей не принимается!\n");
+                        continue;
+                    }
+
+                    currentBalance += takenMoney;
+                    money[takenMoney] += 1;
+                    Console.WriteLine($"Принято: {takenMoney} рублей");
+                    Console.WriteLine($"Текущий баланс: {currentBalance} рублей\n");
+                }
+            }
+
+            Thread.Sleep(100);
+        }
+
+        private bool SsValidBanknote(decimal amount)
+        {
+            decimal[] validBanknotes = { 1, 2, 5, 10, 50, 100, 200, 500, 1000, 2000, 5000 };
+            return validBanknotes.Contains(amount);
+        }
+
+        private void GetChange()
+        {
+            decimal changeAmount = currentBalance;
+
+            var change = new Dictionary<decimal, int>();
+            decimal remaining = changeAmount;
+
+            var sortedCoins = money.Where(c => c.Value > 0)
+                                .OrderByDescending(c => c.Key)
+                                .ToList();
+
+            foreach (var coin in sortedCoins)
+            {
+                if (remaining <= 0) break;
+
+                decimal coinValue = coin.Key;
+                int availableCount = coin.Value;
+
+                if (coinValue <= remaining)
+                {
+                    int neededCount = (int)(remaining / coinValue);
+                    int countToUse = Math.Min(neededCount, availableCount);
+
+                    if (countToUse > 0)
+                    {
+                        change[coinValue] = countToUse;
+                        remaining -= coinValue * countToUse;
+                        money[coinValue] -= countToUse;
+                    }
+                }
+            }
+
+            if (remaining == 0)
+            {
+                Console.WriteLine("Сдача выдана успешно:");
+                foreach (var coin in change)
+                {
+                    Console.WriteLine($"{coin.Key} рублей - {coin.Value} шт.");
+                }
+                currentBalance = 0;
+            }
+            else
+            {
+                foreach (var coin in change)
+                {
+                    money[coin.Key] += coin.Value;
+                }
+                Console.WriteLine("Невозможно выдать сдачу");
+            }
+        }
+
+        private void CheckAdminMode()
+        {
+            Console.Clear();
+            Console.Write("Напишите пароль: ");
+            string input = Console.ReadLine();
+            if (input == "Password")
+            {
+                isAdminMode = true;
+                ShowAdminMode();
+            }
+            Console.WriteLine("Пароль неправильный");
+            return;
+        }
+        private void NewAssortment()
+        {
+            ShowProducts();
+            Console.Write("Напишите название товара: ");
+            string name = Console.ReadLine();
+            if (products.Any(p => p.Name == name))
+            {
+                var product = products.FirstOrDefault(p => p.Name == name);
+                Console.WriteLine(product);
+                Console.Write("Какое число хоите внести: ");
+                int quantity = int.Parse(Console.ReadLine());
+                product.Quantity += quantity;
+                Console.WriteLine(product);
+            }
+            else
+            {
+                Console.WriteLine("Товар не найден.");
+                Console.WriteLine("Если хотите добавить новую позицию, напишите +.");
+                string input = Console.ReadLine();
+                if (input == "+")
+                {
+                    Console.Write("Цена: ");
+                    decimal price = decimal.Parse(Console.ReadLine());
+                    Console.Write("Колчисетво: ");
+                    int quantity = int.Parse(Console.ReadLine());
+                    Console.Write("Код товара: ");
+                    string code = Console.ReadLine().ToUpper();
+                    Product product = new Product(name, price, quantity, code);
+                    products.Add(product);
+                    Console.WriteLine("Новый товар добавлен.");
+                }
+                else
+                {
+                    return;
+                }
+
+            }
+        }
+        private void Fundraising()
+        {
+            decimal sum = 0;
+            foreach (var item in money)
+            {
+                Console.WriteLine($"{item.Key} - {item.Value} шт.");
+                sum += item.Key;
+                money[item.Key]= 0;
+            }
+            Console.WriteLine($"Выдано: {sum}");
+        }
+    }
+}
