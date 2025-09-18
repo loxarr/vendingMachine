@@ -89,6 +89,7 @@ namespace VendingMachine
         private void ShowConsumerMode()
         {
             Console.Clear();
+            Console.WriteLine("Введите номер позиции.\n");
             Console.WriteLine("***СПИСОК ДЕЙСВТИЙ***");
             Console.WriteLine("1. Список товаров");
             Console.WriteLine("2. Внести деньги");
@@ -115,6 +116,10 @@ namespace VendingMachine
                 case "5":
                     CheckAdminMode();
                     break;
+                default:
+                    Console.WriteLine("\nНЕКОРЕКТНЫЙ ВВОД");
+                    Thread.Sleep(1000);
+                    break;
             }
 
         }
@@ -139,6 +144,10 @@ namespace VendingMachine
                     break;
                 case "3":
                     isAdminMode = false;
+                    break;
+                default:
+                    Console.WriteLine("\nНЕКОРЕКТНЫЙ ВВОД");
+                    Thread.Sleep(1000);
                     break;
             }
 
@@ -364,8 +373,8 @@ namespace VendingMachine
             foreach (var item in money)
             {
                 Console.WriteLine($"{item.Key} - {item.Value} шт.");
-                sum += item.Key;
-                money[item.Key]= 0;
+                sum += item.Key * item.Value;
+                money[item.Key] = 0;
             }
             Console.WriteLine($"Выдано: {sum}");
         }
